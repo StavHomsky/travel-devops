@@ -1,0 +1,8 @@
+apiVersion: v2
+name: travel-app
+description: Travel Locations app - React frontend, Flask API and PostgreSQL
+type: application
+# Version of the chart itself - bump it when you change templates.
+version: 0.1.0
+# Version of the application being deployed (the image tag by default).
+appVersion: "local"

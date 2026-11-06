@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgres
+  labels:
+    {{- include "travel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  # Headless service (no virtual IP): DNS points straight at the pod.
+  # A StatefulSet needs one to give its pods stable DNS names.
+  clusterIP: None
+  selector:
+    {{- include "travel.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres

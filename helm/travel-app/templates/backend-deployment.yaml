@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    {{- include "travel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
+  replicas: {{ .Values.backend.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "travel.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "travel.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+      annotations:
+        # Pods only restart when their spec changes. Putting a hash of the
+        # ConfigMap here means: change a setting -> pods restart automatically.
+        checksum/config: {{ include (print $.Template.BasePath "/backend-configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001        # same user the Dockerfile creates
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          # The image's entrypoint.sh does the work when these flags are true,
+          # then runs the command we give it - "true" just exits with success.
+          args: ["true"]
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-backend
+            - secretRef:
+                name: {{ include "travel.secretName" . }}
+          env:
+            - name: RUN_MIGRATIONS
+              value: "true"
+            - name: SEED_DB
+              value: {{ .Values.backend.seedOnInstall | quote }}
+            - name: ENRICH_DB
+              value: {{ .Values.backend.enrichment | quote }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 5000
+          # envFrom = "every key in this ConfigMap/Secret becomes an env var"
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-backend
+            - secretRef:
+                name: {{ include "travel.secretName" . }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 4
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

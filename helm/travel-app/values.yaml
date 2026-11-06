@@ -1,0 +1,72 @@
+# Settings for the travel-app chart.
+# Override per environment with: helm install ... -f values-prod.yaml
+ingress:
+  enabled: true
+  className: nginx
+  host: travel.local
+
+backend:
+  image:
+    repository: travel-backend
+    tag: local
+    # IfNotPresent: use the image already loaded into Minikube,
+    # don't try to download it from Docker Hub.
+    pullPolicy: IfNotPresent
+  replicas: 1
+  logLevel: INFO
+  enrichment: true           # look up map/Wikipedia info for new places
+  seedOnInstall: true        # load the 8 sample places into an empty DB
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPU: 70
+
+
+frontend:
+  image:
+    repository: travel-frontend
+    tag: local
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPU: 70
+
+
+
+# Secrets are NOT stored here. Pass them at install time from a
+# git-ignored file:  -f secrets.local.yaml
+# Or point existingSecret at a Secret created outside Helm (e.g. by Vault).
+secrets:
+  existingSecret: ""
+  postgresPassword: ""
+  secretKey: ""
+
+postgres:
+  image:
+    repository: postgres
+    tag: 16-alpine
+  database: travel
+  username: travel
+  storage: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi

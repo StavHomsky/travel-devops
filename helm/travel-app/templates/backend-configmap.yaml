@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    {{- include "travel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+data:
+  APP_ENV: production
+  APP_VERSION: {{ .Values.backend.image.tag | quote }}
+  LOG_LEVEL: {{ .Values.backend.logLevel | quote }}
+  ENRICHMENT_ENABLED: {{ .Values.backend.enrichment | quote }}
+  # The Postgres Service name = its DNS name inside the cluster.
+  POSTGRES_HOST: {{ .Release.Name }}-postgres
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: {{ .Values.postgres.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.username | quote }}
