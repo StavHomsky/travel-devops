@@ -1,0 +1,22 @@
+name: jenkins
+services:
+  jenkins:
+    build: .
+    image: travel-jenkins:local
+    ports:
+      - "8090:8080"            # Jenkins UI (8080 is used by other things)
+    volumes:
+      - jenkins-home:/var/jenkins_home        # jobs, plugins, credentials survive restarts
+      - /var/run/docker.sock:/var/run/docker.sock  # use the Mac's Docker to build images
+    # The docker socket belongs to group 0 - let the jenkins user use it.
+    group_add: ["0"]
+    # Join Minikube's network so Jenkins can reach the cluster API at 192.168.49.2.
+    networks: [minikube]
+    restart: unless-stopped
+
+volumes:
+  jenkins-home:
+
+networks:
+  minikube:
+    external: true

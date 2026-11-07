@@ -1,0 +1,32 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout app') {
+      steps {
+        dir('app') {
+          git url: 'https://github.com/StavHomsky/travel-app.git', branch: 'main'
+        }
+      }
+    }
+
+    stage('Secret scan') {
+      steps {
+        sh 'gitleaks git app --redact'
+        sh 'gitleaks git .   --redact'
+      }
+    }
+
+    stage('Lint & test backend') {
+      steps {
+        sh 'docker build --target test app/backend'
+      }
+    }
+
+    stage('Lint & test frontend') {
+      steps {
+        sh 'docker build --target test app/frontend'
+      }
+    }
+  }
+}
