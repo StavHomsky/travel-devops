@@ -1,11 +1,20 @@
 pipeline {
   agent any
 
+  environment {
+    DOCKERHUB = credentials('dockerhub')
+  }
+
   stages {
     stage('Checkout app') {
       steps {
         dir('app') {
           git url: 'https://github.com/StavHomsky/travel-app.git', branch: 'main'
+        }
+        script {
+          env.GIT_SHA = sh(script: 'git -C app rev-parse --short HEAD', returnStdout: true).trim()
+          env.BACKEND_IMAGE  = "${env.DOCKERHUB_USR}/travel-backend:${env.GIT_SHA}"
+          env.FRONTEND_IMAGE = "${env.DOCKERHUB_USR}/travel-frontend:${env.GIT_SHA}"
         }
       }
     }
@@ -26,6 +35,55 @@ pipeline {
     stage('Lint & test frontend') {
       steps {
         sh 'docker build --target test app/frontend'
+      }
+    }
+
+    stage('Build images') {
+      steps {
+        sh '''
+          docker build -t $BACKEND_IMAGE  --build-arg APP_VERSION=$GIT_SHA --build-arg VCS_REF=$GIT_SHA app/backend
+          docker build -t $FRONTEND_IMAGE --build-arg APP_VERSION=$GIT_SHA --build-arg VCS_REF=$GIT_SHA app/frontend
+        '''
+      }
+    }
+
+    stage('Image scan (Trivy)') {
+      steps {
+        sh '''
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed $BACKEND_IMAGE
+          trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed $FRONTEND_IMAGE
+        '''
+      }
+    }
+
+    stage('Push to Docker Hub') {
+      steps {
+        sh '''
+          echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin
+          docker push $BACKEND_IMAGE
+          docker push $FRONTEND_IMAGE
+          docker logout
+        '''
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        withCredentials([
+          file(credentialsId: 'kubeconfig-minikube', variable: 'KUBECONFIG'),
+          file(credentialsId: 'helm-secrets',        variable: 'HELM_SECRETS')
+        ]) {
+          sh '''
+            helm upgrade --install travel helm/travel-app \
+              --namespace travel --create-namespace \
+              -f $HELM_SECRETS \
+              --set backend.image.repository=$DOCKERHUB_USR/travel-backend \
+              --set backend.image.tag=$GIT_SHA \
+              --set frontend.image.repository=$DOCKERHUB_USR/travel-frontend \
+              --set frontend.image.tag=$GIT_SHA \
+              --wait --rollback-on-failure --timeout 5m
+          '''
+        }
       }
     }
   }
