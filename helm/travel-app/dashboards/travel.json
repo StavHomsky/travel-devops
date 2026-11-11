@@ -1,0 +1,32 @@
+{
+  "title": "Travel App",
+  "uid": "travel-app",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "title": "Database up",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 },
+      "targets": [{ "expr": "max(travel_db_up)" }]
+    },
+    {
+      "title": "Locations (visited / wishlist)",
+      "type": "timeseries",
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 6 },
+      "targets": [{ "expr": "sum by (status) (travel_locations)", "legendFormat": "{{status}}" }]
+    },
+    {
+      "title": "Requests per second (by status code)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "targets": [{ "expr": "sum by (status) (rate(flask_http_request_total[5m]))", "legendFormat": "{{status}}" }]
+    },
+    {
+      "title": "Response time p95 (seconds)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(flask_http_request_duration_seconds_bucket[5m])))" }]
+    }
+  ]
+}
