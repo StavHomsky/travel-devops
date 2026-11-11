@@ -1,5 +1,10 @@
 # Settings for the travel-app chart.
 # Override per environment with: helm install ... -f values-prod.yaml
+monitoring:
+  # Creates a ServiceMonitor, so Prometheus scrapes the backend's /metrics.
+  # Needs the Prometheus Operator (kube-prometheus-stack) in the cluster.
+  enabled: true
+
 ingress:
   enabled: true
   className: nginx

@@ -1,0 +1,36 @@
+# Settings for the kube-prometheus-stack chart (Prometheus, Alertmanager, Grafana).
+
+prometheus:
+  prometheusSpec:
+    # By default Prometheus only picks up ServiceMonitors/rules created by
+    # THIS Helm release. "false" = also pick up the ones from our travel-app chart.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    retention: 3d               # keep 3 days of data (laptop disk)
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        memory: 1Gi
+
+grafana:
+  # No adminPassword here: the chart generates a random one and stores it
+  # in a Secret (we read it in 15c). Nothing secret goes into git.
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.local
+
+# Minikube runs these control-plane parts in a way Prometheus can't reach.
+# Left on, they'd show as "down" and fire false alerts all day.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeProxy:
+  enabled: false
