@@ -3,3 +3,5 @@
 .terraform/
 *.tfstate*
 *.local.yaml
+*.tfvars
+
