@@ -1,0 +1,58 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ .Release.Name }}-alerts
+  labels:
+    {{- include "travel.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: travel-app
+      rules:
+        - alert: TravelBackendDown
+          # "up" is set by Prometheus itself: 1 = scrape worked, 0 = failed.
+          expr: sum(up{namespace="{{ .Release.Namespace }}", service="{{ .Release.Name }}-backend"}) == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Travel backend is down"
+            description: "No backend pod has answered on /metrics for 2 minutes."
+
+        - alert: TravelDatabaseDown
+          # Our own custom metric: the backend checks the DB on every scrape.
+          expr: max(travel_db_up{namespace="{{ .Release.Namespace }}"}) == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Travel backend cannot reach PostgreSQL"
+            description: "travel_db_up has been 0 for 1 minute."
+
+        - alert: TravelHighErrorRate
+          # 5xx responses divided by all responses, over the last 5 minutes.
+          expr: |
+            sum(rate(flask_http_request_total{namespace="{{ .Release.Namespace }}", status=~"5.."}[5m]))
+              /
+            sum(rate(flask_http_request_total{namespace="{{ .Release.Namespace }}"}[5m]))
+              > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Travel API error rate above 5%"
+            description: "{{ "{{" }} $value | humanizePercentage {{ "}}" }} of requests are failing."
+
+        - alert: TravelEnrichmentFailing
+          expr: |
+            sum(rate(travel_enrichment_requests_total{namespace="{{ .Release.Namespace }}", result!="success"}[15m]))
+              /
+            sum(rate(travel_enrichment_requests_total{namespace="{{ .Release.Namespace }}"}[15m]))
+              > 0.5
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Map/Wikipedia lookups are failing"
+            description: "Over half of enrichment calls failed in the last 15 minutes."
+{{- end }}
