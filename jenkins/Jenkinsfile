@@ -28,15 +28,47 @@ pipeline {
 
     stage('Lint & test backend') {
       steps {
-        sh 'docker build --target test app/backend'
+        sh 'docker build --target test -t travel-backend-test app/backend'
+        // Copy the coverage report out of the test image, for SonarQube.
+        // Inside the image the code was at /src/app; here it's in the workspace,
+        // so fix the path in the report or SonarQube can't match the files.
+        sh '''
+          id=$(docker create travel-backend-test)
+          docker cp $id:/reports/coverage.xml app/backend/coverage.xml
+          docker rm $id
+          sed -i "s#<source>/src/app</source>#<source>$WORKSPACE/app/backend/app</source>#" app/backend/coverage.xml
+        '''
       }
     }
+
 
     stage('Lint & test frontend') {
       steps {
         sh 'docker build --target test app/frontend'
       }
     }
+
+    stage('SonarQube analysis') {
+      steps {
+        dir('app') {
+          // withSonarQubeEnv = use the "sonarqube" server + token configured in Jenkins
+          withSonarQubeEnv('sonarqube') {
+            sh "${tool 'sonar-scanner'}/bin/sonar-scanner"
+          }
+        }
+      }
+    }
+
+    stage('Quality gate') {
+      steps {
+        // Wait for SonarQube's verdict (sent back by the webhook).
+        // A failed gate aborts the pipeline: no build, no push, no deploy.
+        timeout(time: 5, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
 
     stage('Build images') {
       steps {
