@@ -23,6 +23,11 @@ grafana:
     ingressClassName: nginx
     hosts:
       - grafana.local
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki:3100
+
 
 # Minikube runs these control-plane parts in a way Prometheus can't reach.
 # Left on, they'd show as "down" and fire false alerts all day.

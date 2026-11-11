@@ -1,0 +1,4 @@
+# Send all container logs to Loki.
+config:
+  clients:
+    - url: http://loki:3100/loki/api/v1/push
