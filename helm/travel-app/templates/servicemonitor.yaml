@@ -1,0 +1,19 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}-backend
+  labels:
+    {{- include "travel.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  # Which Services to scrape: the backend Service (same labels as its selector).
+  selector:
+    matchLabels:
+      {{- include "travel.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http          # the Service port NAME, not the number
+      path: /metrics
+      interval: 30s
+{{- end }}
