@@ -45,7 +45,7 @@ spec:
 
         - alert: TravelEnrichmentFailing
           expr: |
-            sum(rate(travel_enrichment_requests_total{namespace="{{ .Release.Namespace }}", result!="success"}[15m]))
+            sum(rate(travel_enrichment_requests_total{namespace="{{ .Release.Namespace }}", result="error"}[15m]))
               /
             sum(rate(travel_enrichment_requests_total{namespace="{{ .Release.Namespace }}"}[15m]))
               > 0.5
